@@ -1,83 +1,77 @@
-export function calculateBMI(height: number, weight: number): number {
-  // height in cm, weight in kg
-  return weight / ((height / 100) ** 2)
+// BMI Calculation: weight (kg) / (height (cm) / 100)^2
+export function calculateBMI(heightCm: number, weightKg: number): number {
+  const heightM = heightCm / 100
+  return weightKg / (heightM * heightM)
 }
 
-export function calculateBMR(age: number, gender: 'male' | 'female' | 'other', height: number, weight: number): number {
-  // Mifflin-St Jeor equation
+// BMR Calculation using Mifflin-St Jeor equation
+export function calculateBMR(
+  age: number,
+  gender: 'male' | 'female' | 'other',
+  heightCm: number,
+  weightKg: number
+): number {
   let bmr: number
-  
+
   if (gender === 'male') {
-    bmr = 10 * weight + 6.25 * height - 5 * age + 5
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + 5
   } else if (gender === 'female') {
-    bmr = 10 * weight + 6.25 * height - 5 * age - 161
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 161
   } else {
-    bmr = (10 * weight + 6.25 * height - 5 * age + 5 + 10 * weight + 6.25 * height - 5 * age - 161) / 2
+    // Average for other
+    bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 78
   }
-  
+
   return bmr
 }
 
+// TDEE Calculation based on activity level
 export function calculateTDEE(bmr: number, activityLevel: string): number {
-  const activityMultipliers: Record<string, number> = {
+  const multipliers: { [key: string]: number } = {
     sedentary: 1.2,
     light: 1.375,
     moderate: 1.55,
     active: 1.725,
     very_active: 1.9,
   }
-  
-  return bmr * (activityMultipliers[activityLevel] || 1.5)
+
+  const multiplier = multipliers[activityLevel] || 1.55
+  return Math.round(bmr * multiplier)
 }
 
-export function calculateMacros(tdee: number, preference: string) {
-  let proteinPercentage = 0.3
-  let carbPercentage = 0.4
-  let fatPercentage = 0.3
+// Calculate macronutrient goals
+export function calculateMacros(
+  tdee: number,
+  healthGoal: string
+): { protein: number; carbs: number; fats: number } {
+  let proteinPercent = 0.3
+  let carbsPercent = 0.45
+  let fatsPercent = 0.25
 
-  // Adjust based on goal
-  if (preference === 'gain_muscle') {
-    proteinPercentage = 0.35
-    carbPercentage = 0.45
-    fatPercentage = 0.2
-  } else if (preference === 'lose_weight') {
-    proteinPercentage = 0.35
-    carbPercentage = 0.35
-    fatPercentage = 0.3
-  } else if (preference === 'keto') {
-    proteinPercentage = 0.25
-    carbPercentage = 0.05
-    fatPercentage = 0.7
+  if (healthGoal === 'lose_weight') {
+    proteinPercent = 0.35 // Higher protein to preserve muscle
+    carbsPercent = 0.4
+    fatsPercent = 0.25
+  } else if (healthGoal === 'gain_muscle') {
+    proteinPercent = 0.35
+    carbsPercent = 0.45
+    fatsPercent = 0.2
   }
 
-  return {
-    protein: Math.round((tdee * proteinPercentage) / 4), // 4 cal per gram
-    carbs: Math.round((tdee * carbPercentage) / 4),
-    fats: Math.round((tdee * fatPercentage) / 9), // 9 cal per gram
-  }
+  const protein = Math.round((tdee * proteinPercent) / 4)
+  const carbs = Math.round((tdee * carbsPercent) / 4)
+  const fats = Math.round((tdee * fatsPercent) / 9)
+
+  return { protein, carbs, fats }
 }
 
-export function calculateWaterGoal(weight: number): number {
-  // General recommendation: 30-35ml per kg of body weight
-  return Math.round(weight * 35)
+// Water intake goal (simplified: weight * 35 ml)
+export function calculateWaterGoal(weightKg: number): number {
+  return Math.round(weightKg * 35)
 }
 
-export function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-export function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-export function calculateHealthScore(data: {
+// Calculate health score based on daily metrics
+export function calculateHealthScore(metrics: {
   caloriesBurned: number
   caloriesGoal: number
   protein: number
@@ -88,33 +82,46 @@ export function calculateHealthScore(data: {
   sleepGoal: number
 }): number {
   let score = 0
-  
-  // Calorie balance (max 25 points)
-  const calorieDiff = Math.abs(data.caloriesBurned - data.caloriesGoal)
-  if (calorieDiff < data.caloriesGoal * 0.1) score += 25
-  else if (calorieDiff < data.caloriesGoal * 0.2) score += 20
-  else if (calorieDiff < data.caloriesGoal * 0.3) score += 15
-  else score += 10
-  
+
+  // Calories (max 25 points)
+  const calorieRatio = metrics.caloriesBurned / metrics.caloriesGoal
+  if (calorieRatio >= 0.9 && calorieRatio <= 1.1) {
+    score += 25
+  } else if (calorieRatio >= 0.8 && calorieRatio <= 1.2) {
+    score += 20
+  } else if (calorieRatio >= 0.7 && calorieRatio <= 1.3) {
+    score += 10
+  }
+
   // Protein (max 25 points)
-  const proteinRatio = data.protein / data.proteinGoal
-  if (proteinRatio >= 0.9 && proteinRatio <= 1.1) score += 25
-  else if (proteinRatio >= 0.8 && proteinRatio <= 1.2) score += 20
-  else if (proteinRatio >= 0.7 && proteinRatio <= 1.3) score += 15
-  else score += 10
-  
+  const proteinRatio = metrics.protein / metrics.proteinGoal
+  if (proteinRatio >= 0.9 && proteinRatio <= 1.1) {
+    score += 25
+  } else if (proteinRatio >= 0.8 && proteinRatio <= 1.2) {
+    score += 20
+  } else if (proteinRatio >= 0.7 && proteinRatio <= 1.3) {
+    score += 10
+  }
+
   // Water (max 25 points)
-  const waterRatio = data.water / data.waterGoal
-  if (waterRatio >= 0.8) score += 25
-  else if (waterRatio >= 0.6) score += 20
-  else if (waterRatio >= 0.4) score += 15
-  else score += 10
-  
+  const waterRatio = metrics.water / metrics.waterGoal
+  if (waterRatio >= 0.9 && waterRatio <= 1.1) {
+    score += 25
+  } else if (waterRatio >= 0.7 && waterRatio <= 1.3) {
+    score += 15
+  } else if (waterRatio >= 0.5) {
+    score += 10
+  }
+
   // Sleep (max 25 points)
-  if (data.sleep >= data.sleepGoal * 0.9) score += 25
-  else if (data.sleep >= data.sleepGoal * 0.8) score += 20
-  else if (data.sleep >= data.sleepGoal * 0.6) score += 15
-  else score += 10
-  
-  return Math.min(100, score)
+  const sleepRatio = metrics.sleep / metrics.sleepGoal
+  if (sleepRatio >= 0.9 && sleepRatio <= 1.1) {
+    score += 25
+  } else if (sleepRatio >= 0.7 && sleepRatio <= 1.2) {
+    score += 20
+  } else if (sleepRatio >= 0.6) {
+    score += 10
+  }
+
+  return Math.min(100, Math.max(0, score))
 }
